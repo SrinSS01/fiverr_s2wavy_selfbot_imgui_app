@@ -1,0 +1,3 @@
+D:/progs/C++/fiverr/s2wavy/SelfBot/out/debug/CMakeFiles/SelfBot.dir
+D:/progs/C++/fiverr/s2wavy/SelfBot/out/debug/CMakeFiles/edit_cache.dir
+D:/progs/C++/fiverr/s2wavy/SelfBot/out/debug/CMakeFiles/rebuild_cache.dir
