@@ -240,7 +240,7 @@ int main(int, const char **args) {
             }
 
             if (!messages.empty()) {
-                ImGui::SetNextWindowPos({20, 60}, ImGuiCond_Always);
+                ImGui::SetNextWindowPos({20, 10}, ImGuiCond_Always);
                 ImGui::BeginChild("##error", {}, ImGuiChildFlags_AutoResizeY);
                 int i = 0;
                 for (const auto &[_, message]: messages) {
