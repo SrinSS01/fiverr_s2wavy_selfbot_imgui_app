@@ -11,7 +11,7 @@ class Api {
 public:
     Api(LibCurl& curl);
     ResponsePair<std::map<std::string, User>> get_users();
-    GLuint LoadTextureFromURL(std::string const& url);
+    ResponsePair<GLuint> LoadTextureFromURL(const std::string &url);
     static GLuint LoadTextureFromMemory(const unsigned char*data, int size);
 
     Response delete_user(const std::string& user_id);

@@ -1,7 +1,3 @@
-//
-// Created by Srinj on 27-05-2024.
-//
-
 #include "LibCurl.h"
 #include <iostream>
 
@@ -24,7 +20,9 @@ Response LibCurl::Get(const std::string &url) {
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_CAINFO, "./cacert.pem");
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
+//        curl_easy_setopt(curl, CURLOPT_CAINFO, "./curl-ca-bundle.crt");
+//        curl_easy_setopt(curl, CURLOPT_CAPATH, "./curl-ca-bundle.crt");
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
@@ -46,7 +44,9 @@ Response LibCurl::Post(const std::string &url, const std::string &data) {
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_CAINFO, "./cacert.pem");
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
+//        curl_easy_setopt(curl, CURLOPT_CAINFO, "./curl-ca-bundle.crt");
+//        curl_easy_setopt(curl, CURLOPT_CAPATH, "./curl-ca-bundle.crt");
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
         curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
@@ -74,7 +74,9 @@ Response LibCurl::Delete(std::string const& url) {
     if(curl) {
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_CAINFO, "./cacert.pem");
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
+//        curl_easy_setopt(curl, CURLOPT_CAINFO, "./curl-ca-bundle.crt");
+//        curl_easy_setopt(curl, CURLOPT_CAPATH, "./curl-ca-bundle.crt");
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
