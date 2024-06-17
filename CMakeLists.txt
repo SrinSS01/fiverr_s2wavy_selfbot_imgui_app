@@ -39,7 +39,7 @@ target_link_libraries(
         opengl32
 )
 file(COPY ${fonts_dir} DESTINATION ${output_dir})
-file(COPY ${CMAKE_SOURCE_DIR}/lib/curl-ca-bundle.crt DESTINATION ${output_dir})
+#file(COPY ${CMAKE_SOURCE_DIR}/lib/curl-ca-bundle.crt DESTINATION ${output_dir})
 file(GLOB dlls_to_copy ${shared_lib_dir}/*.dll)
 #file(COPY ${shared_lib_dir}/selfbot-backend.exe DESTINATION ${output_dir})
 file(COPY ${dlls_to_copy} DESTINATION ${output_dir})

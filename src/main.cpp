@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <json/json.h>
 #include <thread>
+#include <functional>
 
 #include "LoginWindow.h"
 #include "LibCurl.h"
@@ -23,6 +24,53 @@ static const int height = 640;
 
 enum Appearance {
     DARK, LIGHT
+};
+
+template<typename T>
+class LinkedList {
+private:
+    template<typename K>
+    struct Node {
+        K data;
+        std::shared_ptr<Node<K>> next;
+        std::shared_ptr<Node<K>> previous;
+    };
+public:
+    std::shared_ptr<Node<T>> head;
+    std::shared_ptr<Node<T>> last;
+
+    LinkedList() : head(nullptr) {}
+
+    void push_front(T value) {
+        auto new_node = std::make_shared<Node<T>>(value);
+        new_node->next = head;
+        if (head != nullptr) {
+            head->previous = new_node;
+        }
+        head = new_node;
+        if (last == nullptr) { // List was empty
+            last = new_node;
+        }
+    }
+
+    void pop_back() {
+        if (last == nullptr) { // List is empty
+            return;
+        }
+        last = last->previous;
+        if (last != nullptr) {
+            last->next = nullptr;
+        } else {
+            head = nullptr; // List is now empty
+        }
+    }
+
+    template<typename Func>
+    void for_each(Func f) {
+        for (auto node = head; node != nullptr; node = node->next) {
+            f(node->data);
+        }
+    }
 };
 
 void CircleImage(ImTextureID user_texture_id, float diameter, const ImVec2 &uv0 = ImVec2(0, 0), const ImVec2 &uv1 = ImVec2(1, 1), const ImVec4 &tint_col = ImVec4(1, 1, 1, 1)) {
@@ -80,15 +128,16 @@ int main(int, const char **args) {
     GLuint EditIcon;
 
     ResponsePair<std::map<std::string, User>> users_result = api.get_users();
-    std::map<time_t, Response> messages{};
+//    std::vector<Response> messages;
+    LinkedList<Response> messages;
+    std::mutex my_mutex;
 
     if (!is_ok_status(users_result.second.status)) {
-        auto now = std::chrono::system_clock::now();
-        auto now_c = std::chrono::system_clock::to_time_t(now);
-        messages.emplace(now_c, users_result.second);
+        messages.push_front(users_result.second);
         std::thread([&](){
-            std::this_thread::sleep_for(std::chrono::seconds(3));
-            messages.erase(now_c);
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            std::lock_guard<std::mutex> guard(my_mutex);
+            messages.pop_back();
         }).detach();
     }
     std::map<std::string, User> users = users_result.first;
@@ -203,12 +252,11 @@ int main(int, const char **args) {
                                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImColor{5, 46, 22}.Value);
                                     if (ImGui::Button("OK", ImVec2(120, 0))) {
                                         auto response = api.delete_user(user.user_id);
-                                        auto now = std::chrono::system_clock::now();
-                                        auto now_c = std::chrono::system_clock::to_time_t(now);
-                                        messages.emplace(now_c, response);
+                                        messages.push_front(response);
                                         std::thread([&](){
-                                            std::this_thread::sleep_for(std::chrono::seconds(3));
-                                            messages.erase(now_c);
+                                            std::this_thread::sleep_for(std::chrono::seconds(5));
+                                            std::lock_guard<std::mutex> guard(my_mutex);
+                                            messages.pop_back();
                                         }).detach();
                                         if (is_ok_status(response.status) || response.status == StatusInternalServerError) {
                                             users_to_delete.push_back(user_id);
@@ -239,27 +287,30 @@ int main(int, const char **args) {
                 } ImGui::EndChild();
             }
 
-            if (!messages.empty()) {
-                ImGui::SetNextWindowPos({20, 10}, ImGuiCond_Always);
-                ImGui::BeginChild("##error", {}, ImGuiChildFlags_AutoResizeY);
-                int i = 0;
-                for (const auto &[_, message]: messages) {
-                    bool is_error = !is_ok_status(message.status);
-                    ImGui::SetNextWindowBgAlpha(1);
-                    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 30.0f, 25.0f });
-                    ImGui::PushStyleColor(ImGuiCol_FrameBg, is_error? ImColor { 69, 10, 10 }.Value: ImColor{5, 46, 22}.Value);
-                    ImGui::PushStyleColor(ImGuiCol_Border, is_error? ImColor{ 239, 68, 68 }.Value: ImColor{34, 197, 94}.Value);
-                    ImGui::BeginChild((std::string ("##error").append(std::to_string(i + 1))).c_str(), {}, ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_FrameStyle);
-                    ImGui::TextWrapped(message.data.c_str());
+            {
+                std::lock_guard<std::mutex> guard(my_mutex);
+                if (messages.head != nullptr) {
+                    ImGui::SetNextWindowPos({20, 10}, ImGuiCond_Always);
+                    ImGui::BeginChild("##error", {}, ImGuiChildFlags_AutoResizeY);
+                    int i = 0;
+                    messages.for_each([&](Response const& message){
+                        bool is_error = !is_ok_status(message.status);
+                        ImGui::SetNextWindowBgAlpha(1);
+                        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
+                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {30.0f, 25.0f});
+                        ImGui::PushStyleColor(ImGuiCol_FrameBg, is_error ? ImColor{69, 10, 10}.Value : ImColor{5, 46, 22}.Value);
+                        ImGui::PushStyleColor(ImGuiCol_Border, is_error ? ImColor{239, 68, 68}.Value : ImColor{34, 197, 94}.Value);
+                        ImGui::BeginChild((std::string("##error").append(std::to_string(i + 1))).c_str(), {}, ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_FrameStyle);
+                        ImGui::TextWrapped(message.data.c_str());
+                        ImGui::EndChild();
+                        ImGui::PopStyleColor(2);
+                        ImGui::PopStyleVar(2);
+                        ImGui::Spacing();
+                        ImGui::Spacing();
+                        i++;
+                    });
                     ImGui::EndChild();
-                    ImGui::PopStyleColor(2);
-                    ImGui::PopStyleVar(2);
-                    ImGui::Spacing();
-                    ImGui::Spacing();
-                    i++;
                 }
-                ImGui::EndChild();
             }
 
             ImGui::SetNextWindowPos({20, vp->WorkPos.y + vp->WorkSize.y - 20}, ImGuiCond_Always, {0, 1.0f});
@@ -271,12 +322,11 @@ int main(int, const char **args) {
                 ImGui::BeginDisabled(token.empty());
                 if (ImGui::Button("add", {-FLT_MIN, 0})) {
                     Response response = api.add_user(token, users);
-                    auto now = std::chrono::system_clock::now();
-                    auto now_c = std::chrono::system_clock::to_time_t(now);
-                    messages.emplace(now_c, response);
+                    messages.push_front(response);
                     std::thread([&](){
-                        std::this_thread::sleep_for(std::chrono::seconds(3));
-                        messages.erase(now_c);
+                        std::this_thread::sleep_for(std::chrono::seconds(5));
+                        std::lock_guard<std::mutex> guard(my_mutex);
+                        messages.pop_back();
                     }).detach();
                     token = "";
                 }

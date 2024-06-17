@@ -4,7 +4,7 @@
 #include <stb_image.h>
 #include "api/Api.h"
 
-static std::string API_URL = "https://studious-broccoli-vr7j4qg6p492xppj-8000.app.github.dev"; // http://localhost:8000";
+static std::string API_URL = "http://localhost:8000";
 
 Api::Api(LibCurl &curl):curl(curl) {}
 
