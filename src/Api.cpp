@@ -4,7 +4,7 @@
 #include <stb_image.h>
 #include "api/Api.h"
 
-static std::string API_URL = "http://localhost:8000";
+static std::string API_URL = "https://studious-broccoli-vr7j4qg6p492xppj-8000.app.github.dev"; // http://localhost:8000";
 
 Api::Api(LibCurl &curl):curl(curl) {}
 
@@ -25,25 +25,32 @@ ResponsePair<std::map<std::string, User>> Api::get_users() {
         return { {},{errors, 400} };
     }
 
-//    std::vector<User> users;
     std::map<std::string, User> users;
+    std::stringstream error_stream;
 
     for (const auto &item: root) {
         std::string user_id = item["user_id"].asString();
         auto avatar = item["avatar"];
         std::string url;
         if (avatar.isNull()) {
-            url = "https://cdn.discordapp.com/avatars/0.png?size=256";
+            url.append(API_URL).append("/avatars/").append(user_id).append("/").append("null");
         } else {
-            url = std::string("https://cdn.discordapp.com/avatars/").append(user_id).append("/").append(avatar.asString()).append(".png?size=256");
+            url.append(API_URL).append("/avatars/").append(user_id).append("/").append(avatar.asString());
         }
-        auto textureID = LoadTextureFromURL(url);
+        auto textureIDResponse = LoadTextureFromURL(url);
 
+        if (!is_ok_status(textureIDResponse.second.status)) {
+            error_stream << textureIDResponse.second.data << '\n';
+        }
 
         users.emplace(
             user_id,
-            User { user_id, item["name"].asString(), item["bot_running"].asBool(), textureID }
+            User { user_id, item["name"].asString(), item["bot_running"].asBool(), textureIDResponse.first }
         );
+    }
+    const auto &err_str = error_stream.str();
+    if (!err_str.empty()) {
+        return {{},{err_str}};
     }
 
     return {users, response};
@@ -75,23 +82,30 @@ Response Api::add_user(const std::string& token, std::map<std::string, User> &us
     auto avatar = user["avatar"];
     std::string url;
     if (avatar.isNull()) {
-        url = "https://cdn.discordapp.com/avatars/0.png?size=256";
+        url = API_URL.append("/avatars/").append(user_id).append("/").append("null");
     } else {
-        url = std::string("https://cdn.discordapp.com/avatars/").append(user_id).append("/").append(avatar.asString()).append(".png?size=256");
+        url = API_URL.append("/avatars/").append(user_id).append("/").append(avatar.asString());
     }
-    auto textureID = LoadTextureFromURL(url);
+    auto textureIDResponse = LoadTextureFromURL(url);
+
+    if (!is_ok_status(textureIDResponse.second.status)) {
+        return textureIDResponse.second;
+    }
 
     users.emplace(
             user_id,
-            User{ user_id, user["username"].asString(), false, textureID }
+            User{ user_id, user["username"].asString(), false, textureIDResponse.first }
     );
     response.data = root["message"].asString();
     return response;
 }
 
-GLuint Api::LoadTextureFromURL(const std::string &url) {
+ResponsePair<GLuint> Api::LoadTextureFromURL(const std::string &url) {
     auto response = curl.Get(url);
-    return LoadTextureFromMemory(reinterpret_cast<const stbi_uc *>(response.data.c_str()), response.data.size());
+    if (!is_ok_status(response.status)) {
+        return { 0, response };
+    }
+    return { LoadTextureFromMemory(reinterpret_cast<const stbi_uc *>(response.data.c_str()), response.data.size()), response };
 }
 
 GLuint Api::LoadTextureFromMemory(const unsigned char*data, int size) {
