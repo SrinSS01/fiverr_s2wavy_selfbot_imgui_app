@@ -82,9 +82,9 @@ Response Api::add_user(const std::string& token, std::map<std::string, User> &us
     auto avatar = user["avatar"];
     std::string url;
     if (avatar.isNull()) {
-        url = API_URL.append("/avatars/").append(user_id).append("/").append("null");
+        url.append(API_URL).append("/avatars/").append(user_id).append("/").append("null");
     } else {
-        url = API_URL.append("/avatars/").append(user_id).append("/").append(avatar.asString());
+        url.append(API_URL).append("/avatars/").append(user_id).append("/").append(avatar.asString());
     }
     auto textureIDResponse = LoadTextureFromURL(url);
 

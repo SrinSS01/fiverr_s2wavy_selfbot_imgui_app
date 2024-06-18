@@ -6,6 +6,8 @@
 #include <json/json.h>
 #include <thread>
 #include <functional>
+#include <mutex>
+#include <memory>
 
 #include "LoginWindow.h"
 #include "LibCurl.h"
@@ -18,6 +20,7 @@
 #include "icons/OnlineStatus.png.h"
 #include "icons/OfflineStatus.png.h"
 #include "icons/EditLightMode.png.h"
+#include "icons/Close.png.h"
 
 static const int width = 480;
 static const int height = 640;
@@ -42,7 +45,8 @@ public:
     LinkedList() : head(nullptr) {}
 
     void push_front(T value) {
-        auto new_node = std::make_shared<Node<T>>(value);
+        auto new_node = std::make_shared<Node<T>>();
+        new_node->data = value;
         new_node->next = head;
         if (head != nullptr) {
             head->previous = new_node;
@@ -80,7 +84,8 @@ void CircleImage(ImTextureID user_texture_id, float diameter, const ImVec2 &uv0 
     ImGui::Dummy(ImVec2(diameter, diameter));
 }
 
-int main(int, const char **args) {
+//int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow) {
+int main() { //entry point _ZNKSt9type_inf07_equalERKS_
     glfwSetErrorCallback([](int error, const char *description) -> void { std::cerr << "GLFW Error " << error << ": " << description << std::endl; });
     if (!glfwInit()) {
         return -1;
@@ -109,7 +114,7 @@ int main(int, const char **args) {
     ImGui_ImplOpenGL3_Init(glsl_version);
     glViewport(0, 0, width, height);
 
-    io.Fonts->AddFontFromFileTTF((std::string(args[0]) + "../../fonts/JetBrainsMonoNerdFont-Bold.ttf").c_str(), 18.0f);
+    io.Fonts->AddFontFromFileTTF("./fonts/JetBrainsMonoNerdFont-Bold.ttf", 18.0f);
     io.IniFilename = nullptr;
 
     Appearance appearance = LIGHT;
@@ -125,6 +130,7 @@ int main(int, const char **args) {
     GLuint StopIcon = Api::LoadTextureFromMemory(Stop, StopSize);
     GLuint OfflineStatusIcon = Api::LoadTextureFromMemory(OfflineStatus, OfflineStatusSize);
     GLuint OnlineStatusIcon = Api::LoadTextureFromMemory(OnlineStatus, OnlineStatusSize);
+    GLuint CloseIcon = Api::LoadTextureFromMemory(Close, CloseSize);
     GLuint EditIcon;
 
     ResponsePair<std::map<std::string, User>> users_result = api.get_users();
@@ -148,6 +154,7 @@ int main(int, const char **args) {
     style.FrameRounding = 6;
 
     std::string token;
+    User* selected_user = nullptr;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -174,166 +181,205 @@ int main(int, const char **args) {
         ImGui::SetNextWindowSize(vp->WorkSize);
 
         ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoMove;
-        if (ImGui::Begin("##background", nullptr, windowFlags)) {
-            const ImVec2 &regionAvail = ImGui::GetContentRegionAvail();
-            ImGui::Text("Users");
-            ImGui::SameLine();
-            ImGui::SetCursorPos({regionAvail.x - 40, 10});
-            ImGui::Checkbox(appearanceChecked ? "dark" : "light", &appearanceChecked);
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-            ImGui::Spacing();
-
-            appearance = appearanceChecked ? DARK : LIGHT;
-
-            if (ImGui::BeginChild("##users", {0, regionAvail.y - 120})) {
-                if (!users.empty()) {
-                    int i = 0;
-                    std::vector<std::string> users_to_delete;
-                    for (auto & [user_id, user] : users) {
-                        ImGui::BeginChild(i + 1, {}, ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY); {
-                            CircleImage(reinterpret_cast<ImTextureID>(user.textureID), 80);
-                            ImGui::SameLine();
-                            ImGui::Spacing();
-                            ImGui::SameLine();
-
-                            ImGui::BeginChild((i + 1) * 2, {}, ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AutoResizeX); {
-                                ImGui::SetCursorPosY(20);
-                                ImGui::Text(user.name.c_str());
-                                ImGui::Spacing();
-                                ImGui::Text(user.user_id.c_str());
-                            } ImGui::EndChild();
-
-                            /*Spacing*/ {
-                                ImGui::SameLine();
-                                ImGui::Spacing();
-                                ImGui::SameLine();
-                                ImGui::Spacing();
-                                ImGui::SameLine();
-                                ImGui::Spacing();
-                                ImGui::SameLine();
-                                ImGui::Spacing();
-                                ImGui::SameLine();
-                            }
-
-                            ImGui::BeginChild((i + 1) * 4, {}, ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AutoResizeX); {
-                                ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
-                                auto buttonHoverColor = ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered);
-                                buttonHoverColor.w = 0.3;
-                                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonHoverColor);
-                                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 5, 5 });
-                                ImGui::ImageButton(reinterpret_cast<ImTextureID>(user.bot_running ? StopIcon : PlayIcon),{20, 20});
-                                ImGui::SameLine();
-                                ImGui::ImageButton(reinterpret_cast<ImTextureID>(EditIcon), {20, 20});
-                                ImGui::SameLine();
-                                if (ImGui::ImageButton(reinterpret_cast<ImTextureID>(DeleteIcon), {20, 20})) {
-                                    ImGui::OpenPopup("Delete?");
-                                }
-                                ImGui::PopStyleVar(1);
-                                ImGui::PopStyleColor(2);
-
-                                ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-                                ImGui::SameLine(); ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing(); ImGui::SameLine();
-                                ImGui::Image(reinterpret_cast<ImTextureID>(user.bot_running ? OnlineStatusIcon: OfflineStatusIcon),{20, 20});
-                                ImGui::SameLine();
-                                ImGui::Text(user.bot_running ? "online" : "offline");
-
-                                ImVec2 center = vp->GetCenter();
-                                ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-                                if (ImGui::BeginPopupModal("Delete?", nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
-                                    ImGui::Text("Do you want to delete this bot?");
-                                    ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
-
-                                    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
-                                    ImGui::PushStyleColor(ImGuiCol_Border, ImColor{ 34, 197, 94 }.Value);
-                                    ImGui::PushStyleColor(ImGuiCol_Button, ImColor{ 5, 46, 22 }.Value);
-                                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImColor{22, 101, 52}.Value);
-                                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImColor{5, 46, 22}.Value);
-                                    if (ImGui::Button("OK", ImVec2(120, 0))) {
-                                        auto response = api.delete_user(user.user_id);
-                                        messages.push_front(response);
-                                        std::thread([&](){
-                                            std::this_thread::sleep_for(std::chrono::seconds(5));
-                                            std::lock_guard<std::mutex> guard(my_mutex);
-                                            messages.pop_back();
-                                        }).detach();
-                                        if (is_ok_status(response.status) || response.status == StatusInternalServerError) {
-                                            users_to_delete.push_back(user_id);
-                                        }
-                                        ImGui::CloseCurrentPopup();
-                                    }
-                                    ImGui::PopStyleColor(4);
-                                    ImGui::SetItemDefaultFocus();
-                                    ImGui::SameLine();
-                                    ImGui::PushStyleColor(ImGuiCol_Border, ImColor{239, 68, 68}.Value);
-                                    ImGui::PushStyleColor(ImGuiCol_Button, ImColor{69, 10, 10}.Value);
-                                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImColor{153, 27, 27}.Value);
-                                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImColor{69, 10, 10}.Value);
-                                    if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
-                                    ImGui::PopStyleColor(4);
-                                    ImGui::PopStyleVar(1);
-                                    ImGui::EndPopup();
-                                }
-                            } ImGui::EndChild();
-                        } ImGui::EndChild();
-                        ImGui::Spacing();
-                        ImGui::Spacing();
-                        i++;
-                    }
-                    for (const auto &user_id: users_to_delete) {
-                        users.erase(user_id);
-                    }
-                } ImGui::EndChild();
-            }
-
+        if (selected_user != nullptr) {
+            ImGui::Begin("##background", nullptr, windowFlags);
             {
-                std::lock_guard<std::mutex> guard(my_mutex);
-                if (messages.head != nullptr) {
-                    ImGui::SetNextWindowPos({20, 10}, ImGuiCond_Always);
-                    ImGui::BeginChild("##error", {}, ImGuiChildFlags_AutoResizeY);
-                    int i = 0;
-                    messages.for_each([&](Response const& message){
-                        bool is_error = !is_ok_status(message.status);
-                        ImGui::SetNextWindowBgAlpha(1);
-                        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {30.0f, 25.0f});
-                        ImGui::PushStyleColor(ImGuiCol_FrameBg, is_error ? ImColor{69, 10, 10}.Value : ImColor{5, 46, 22}.Value);
-                        ImGui::PushStyleColor(ImGuiCol_Border, is_error ? ImColor{239, 68, 68}.Value : ImColor{34, 197, 94}.Value);
-                        ImGui::BeginChild((std::string("##error").append(std::to_string(i + 1))).c_str(), {}, ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_FrameStyle);
-                        ImGui::TextWrapped(message.data.c_str());
-                        ImGui::EndChild();
-                        ImGui::PopStyleColor(2);
-                        ImGui::PopStyleVar(2);
-                        ImGui::Spacing();
-                        ImGui::Spacing();
-                        i++;
-                    });
-                    ImGui::EndChild();
+                ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
+                auto buttonHoverColor = ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered);
+                buttonHoverColor.w = 0.3;
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonHoverColor);
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {5, 5});
+                CircleImage(reinterpret_cast<ImTextureID>(selected_user->textureID), 40);
+                ImGui::Text(selected_user->name.c_str());
+                if (ImGui::ImageButton(reinterpret_cast<ImTextureID>(CloseIcon), {20, 20})) {
+                    selected_user = nullptr;
                 }
+                ImGui::PopStyleVar(1);
+                ImGui::PopStyleColor(2);
             }
-
-            ImGui::SetNextWindowPos({20, vp->WorkPos.y + vp->WorkSize.y - 20}, ImGuiCond_Always, {0, 1.0f});
-            if (ImGui::BeginChild("##token", {0, 0}, ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY)) {
-                ImGui::PushItemWidth(-80);
-                ImGui::InputTextWithHint("##token", "Enter bot token", &token, ImGuiInputTextFlags_CharsNoBlank);
-                ImGui::PopItemWidth();
+            ImGui::End();
+        } else {
+            ImGui::Begin("##background", nullptr, windowFlags);
+            {
+                const ImVec2 &regionAvail = ImGui::GetContentRegionAvail();
+                ImGui::Text("Users");
                 ImGui::SameLine();
-                ImGui::BeginDisabled(token.empty());
-                if (ImGui::Button("add", {-FLT_MIN, 0})) {
-                    Response response = api.add_user(token, users);
-                    messages.push_front(response);
-                    std::thread([&](){
-                        std::this_thread::sleep_for(std::chrono::seconds(5));
-                        std::lock_guard<std::mutex> guard(my_mutex);
-                        messages.pop_back();
-                    }).detach();
-                    token = "";
-                }
-                ImGui::EndDisabled();
-                ImGui::EndChild();
-            }
+                ImGui::SetCursorPos({regionAvail.x - 40, 10});
+                ImGui::Checkbox(appearanceChecked ? "dark" : "light", &appearanceChecked);
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+                ImGui::Spacing();
 
+                appearance = appearanceChecked ? DARK : LIGHT;
+
+                if (ImGui::BeginChild("##users", {0, regionAvail.y - 120})) {
+                    if (!users.empty()) {
+                        int i = 0;
+                        std::vector<std::string> users_to_delete;
+                        for (auto &[user_id, user]: users) {
+                            ImGui::BeginChild(i + 1, {}, ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY);
+                            {
+                                CircleImage(reinterpret_cast<ImTextureID>(user.textureID), 80);
+                                ImGui::SameLine();
+                                ImGui::Spacing();
+                                ImGui::SameLine();
+
+                                ImGui::BeginChild((i + 1) * 2, {}, ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AutoResizeX);
+                                {
+                                    ImGui::SetCursorPosY(20);
+                                    ImGui::Text(user.name.c_str());
+                                    ImGui::Spacing();
+                                    ImGui::Text(user.user_id.c_str());
+                                }
+                                ImGui::EndChild();
+
+                                /*Spacing*/ {
+                                    ImGui::SameLine();
+                                    ImGui::Spacing();
+                                    ImGui::SameLine();
+                                    ImGui::Spacing();
+                                    ImGui::SameLine();
+                                    ImGui::Spacing();
+                                    ImGui::SameLine();
+                                    ImGui::Spacing();
+                                    ImGui::SameLine();
+                                }
+
+                                ImGui::BeginChild((i + 1) * 4, {}, ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AutoResizeX);
+                                {
+                                    ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
+                                    auto buttonHoverColor = ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered);
+                                    buttonHoverColor.w = 0.3;
+                                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonHoverColor);
+                                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {5, 5});
+                                    ImGui::ImageButton(reinterpret_cast<ImTextureID>(user.bot_running ? StopIcon : PlayIcon), {20, 20});
+                                    ImGui::SameLine();
+                                    if (ImGui::ImageButton(reinterpret_cast<ImTextureID>(EditIcon), {20, 20})) {
+                                        selected_user = &user;
+                                    }
+                                    ImGui::SameLine();
+                                    if (ImGui::ImageButton(reinterpret_cast<ImTextureID>(DeleteIcon), {20, 20})) {
+                                        ImGui::OpenPopup("Delete?");
+                                    }
+                                    ImGui::PopStyleVar(1);
+                                    ImGui::PopStyleColor(2);
+
+                                    ImGui::Spacing();
+                                    ImGui::Spacing();
+                                    ImGui::Spacing();
+                                    ImGui::Spacing();
+                                    ImGui::SameLine();
+                                    ImGui::Spacing();
+                                    ImGui::Spacing();
+                                    ImGui::Spacing();
+                                    ImGui::Spacing();
+                                    ImGui::SameLine();
+                                    ImGui::Image(reinterpret_cast<ImTextureID>(user.bot_running ? OnlineStatusIcon : OfflineStatusIcon), {20, 20});
+                                    ImGui::SameLine();
+                                    ImGui::Text(user.bot_running ? "online" : "offline");
+
+                                    ImVec2 center = vp->GetCenter();
+                                    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+                                    if (ImGui::BeginPopupModal("Delete?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                                        ImGui::Text("Do you want to delete this bot?");
+                                        ImGui::Spacing();
+                                        ImGui::Spacing();
+                                        ImGui::Spacing();
+
+                                        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
+                                        ImGui::PushStyleColor(ImGuiCol_Border, ImColor{34, 197, 94}.Value);
+                                        ImGui::PushStyleColor(ImGuiCol_Button, ImColor{5, 46, 22}.Value);
+                                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImColor{22, 101, 52}.Value);
+                                        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImColor{5, 46, 22}.Value);
+                                        if (ImGui::Button("OK", ImVec2(120, 0))) {
+                                            auto response = api.delete_user(user.user_id);
+                                            messages.push_front(response);
+                                            std::thread([&]() {
+                                                std::this_thread::sleep_for(std::chrono::seconds(5));
+                                                std::lock_guard<std::mutex> guard(my_mutex);
+                                                messages.pop_back();
+                                            }).detach();
+                                            if (is_ok_status(response.status) || response.status == StatusInternalServerError) {
+                                                users_to_delete.push_back(user_id);
+                                            }
+                                            ImGui::CloseCurrentPopup();
+                                        }
+                                        ImGui::PopStyleColor(4);
+                                        ImGui::SetItemDefaultFocus();
+                                        ImGui::SameLine();
+                                        ImGui::PushStyleColor(ImGuiCol_Border, ImColor{239, 68, 68}.Value);
+                                        ImGui::PushStyleColor(ImGuiCol_Button, ImColor{69, 10, 10}.Value);
+                                        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImColor{153, 27, 27}.Value);
+                                        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImColor{69, 10, 10}.Value);
+                                        if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+                                        ImGui::PopStyleColor(4);
+                                        ImGui::PopStyleVar(1);
+                                        ImGui::EndPopup();
+                                    }
+                                }
+                                ImGui::EndChild();
+                            }
+                            ImGui::EndChild();
+                            ImGui::Spacing();
+                            ImGui::Spacing();
+                            i++;
+                        }
+                        for (const auto &user_id: users_to_delete) {
+                            users.erase(user_id);
+                        }
+                    }
+                }
+                ImGui::EndChild();
+
+                {
+                    std::lock_guard<std::mutex> guard(my_mutex);
+                    if (messages.head != nullptr) {
+                        ImGui::SetNextWindowPos({20, 10}, ImGuiCond_Always);
+                        ImGui::BeginChild("##error", {}, ImGuiChildFlags_AutoResizeY);
+                        int i = 0;
+                        messages.for_each([&](Response const &message) {
+                            bool is_error = !is_ok_status(message.status);
+                            ImGui::SetNextWindowBgAlpha(1);
+                            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
+                            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {30.0f, 25.0f});
+                            ImGui::PushStyleColor(ImGuiCol_FrameBg, is_error ? ImColor{69, 10, 10}.Value : ImColor{5, 46, 22}.Value);
+                            ImGui::PushStyleColor(ImGuiCol_Border, is_error ? ImColor{239, 68, 68}.Value : ImColor{34, 197, 94}.Value);
+                            ImGui::BeginChild((std::string("##error").append(std::to_string(i + 1))).c_str(), {}, ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_FrameStyle);
+                            ImGui::TextWrapped(message.data.c_str());
+                            ImGui::EndChild();
+                            ImGui::PopStyleColor(2);
+                            ImGui::PopStyleVar(2);
+                            ImGui::Spacing();
+                            ImGui::Spacing();
+                            i++;
+                        });
+                        ImGui::EndChild();
+                    }
+                }
+
+                ImGui::SetNextWindowPos({20, vp->WorkPos.y + vp->WorkSize.y - 20}, ImGuiCond_Always, {0, 1.0f});
+                if (ImGui::BeginChild("##token", {0, 0}, ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY)) {
+                    ImGui::PushItemWidth(-80);
+                    ImGui::InputTextWithHint("##token", "Enter bot token", &token, ImGuiInputTextFlags_CharsNoBlank);
+                    ImGui::PopItemWidth();
+                    ImGui::SameLine();
+                    ImGui::BeginDisabled(token.empty());
+                    if (ImGui::Button("add", {-FLT_MIN, 0})) {
+                        Response response = api.add_user(token, users);
+                        messages.push_front(response);
+                        std::thread([&]() {
+                            std::this_thread::sleep_for(std::chrono::seconds(5));
+                            std::lock_guard<std::mutex> guard(my_mutex);
+                            messages.pop_back();
+                        }).detach();
+                        token = "";
+                    }
+                    ImGui::EndDisabled();
+                }
+                ImGui::EndChild();
+
+            }
             ImGui::End();
         }
 
