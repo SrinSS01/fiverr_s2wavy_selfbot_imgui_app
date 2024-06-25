@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(fonts_dir "${CMAKE_SOURCE_DIR}/fonts")
 set(shared_lib_dir "${CMAKE_SOURCE_DIR}/lib")
 set(output_dir "${CMAKE_BINARY_DIR}")
+set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static")
 add_definitions(-DCURL_STATICLIB)
 add_executable(
         ${PROJECT_NAME}
@@ -22,14 +23,19 @@ add_executable(
         src/imgui_tables.cpp
         src/imgui_widgets.cpp
         src/imgui_stdlib.cpp
+        src/imgui_freetype.cpp
         src/LoginWindow.cpp
-        src/LibCurl.cpp src/stb_image.cpp src/Api.cpp)
+        src/LibCurl.cpp src/stb_image.cpp src/Api.cpp
+        src/Window.cpp
+        src/imguidatechooser.cpp
+)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(
         ${PROJECT_NAME}
         ${CMAKE_SOURCE_DIR}/lib/libglfw3.a
         ${CMAKE_SOURCE_DIR}/lib/libjsoncpp.a
+        pthread
         opengl32
         ${CMAKE_SOURCE_DIR}/lib/libcurl.a
         Bcrypt
@@ -50,6 +56,5 @@ target_link_libraries(
         Ws2_32
         ${CMAKE_SOURCE_DIR}/lib/libssl.a
         ${CMAKE_SOURCE_DIR}/lib/libcrypto.a
+        ${CMAKE_SOURCE_DIR}/lib/libfreetype.a
 )
-file(COPY ${fonts_dir} DESTINATION ${output_dir})
-#file(COPY ${shared_lib_dir}/libcurl-x64.dll DESTINATION ${output_dir})

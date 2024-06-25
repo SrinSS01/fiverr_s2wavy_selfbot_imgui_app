@@ -345,8 +345,8 @@ extern "C" {
 #define GLFW_REPEAT                 2
 /*! @} */
 
-/*! @defgroup hat_state Joystick hat states
- *  @brief Joystick hat states.
+/*! @defgroup hat_state Joystick hat state
+ *  @brief Joystick hat state.
  *
  *  See [joystick hat input](@ref joystick_hat) for how these are used.
  *
@@ -2112,11 +2112,11 @@ typedef struct GLFWimage
  */
 typedef struct GLFWgamepadstate
 {
-    /*! The states of each [gamepad button](@ref gamepad_buttons), `GLFW_PRESS`
+    /*! The state of each [gamepad button](@ref gamepad_buttons), `GLFW_PRESS`
      *  or `GLFW_RELEASE`.
      */
     unsigned char buttons[15];
-    /*! The states of each [gamepad axis](@ref gamepad_axes), in the range -1.0
+    /*! The state of each [gamepad axis](@ref gamepad_axes), in the range -1.0
      *  to 1.0 inclusive.
      */
     float axes[6];
@@ -2187,12 +2187,12 @@ typedef struct GLFWallocator
  *  bundle, if present.  This can be disabled with the @ref
  *  GLFW_COCOA_CHDIR_RESOURCES init hint.
  *
- *  @remark @macos This function will create the main menu and dock icon for the
+ *  @remark @macos This function will create the main menu and dock iconTextureID for the
  *  application.  If GLFW finds a `MainMenu.nib` it is loaded and assumed to
  *  contain a menu bar.  Otherwise a minimal menu bar is created manually with
  *  common commands like Hide, Quit and About.  The About entry opens a minimal
  *  about dialog with information from the application's bundle.  The menu bar
- *  and dock icon can be disabled entirely with the @ref GLFW_COCOA_MENUBAR init
+ *  and dock iconTextureID can be disabled entirely with the @ref GLFW_COCOA_MENUBAR init
  *  hint.
  *
  *  @remark __Wayland, X11:__ If the library was compiled with support for both
@@ -3161,9 +3161,9 @@ GLFWAPI void glfwWindowHintString(int hint, const char* value);
  *  @remark @win32 Window creation will fail if the Microsoft GDI software
  *  OpenGL implementation is the only one available.
  *
- *  @remark @win32 If the executable has an icon resource named `GLFW_ICON,` it
- *  will be set as the initial icon for the window.  If no such icon is present,
- *  the `IDI_APPLICATION` icon will be used instead.  To set a different icon,
+ *  @remark @win32 If the executable has an iconTextureID resource named `GLFW_ICON,` it
+ *  will be set as the initial iconTextureID for the window.  If no such iconTextureID is present,
+ *  the `IDI_APPLICATION` iconTextureID will be used instead.  To set a different iconTextureID,
  *  see @ref glfwSetWindowIcon.
  *
  *  @remark @win32 The context to share resources with must not be current on
@@ -3175,8 +3175,8 @@ GLFWAPI void glfwWindowHintString(int hint, const char* value);
  *  hint accordingly.  OpenGL 3.0 and 3.1 contexts are not supported at all
  *  on macOS.
  *
- *  @remark @macos The GLFW window has no icon, as it is not a document
- *  window, but the dock icon will be the same as the application bundle's icon.
+ *  @remark @macos The GLFW window has no iconTextureID, as it is not a document
+ *  window, but the dock iconTextureID will be the same as the application bundle's iconTextureID.
  *  For more information on bundles, see the
  *  [Bundle Programming Guide][bundle-guide] in the Mac Developer Library.
  *
@@ -3363,12 +3363,12 @@ GLFWAPI const char* glfwGetWindowTitle(GLFWwindow* window);
  */
 GLFWAPI void glfwSetWindowTitle(GLFWwindow* window, const char* title);
 
-/*! @brief Sets the icon for the specified window.
+/*! @brief Sets the iconTextureID for the specified window.
  *
- *  This function sets the icon of the specified window.  If passed an array of
+ *  This function sets the iconTextureID of the specified window.  If passed an array of
  *  candidate images, those of or closest to the sizes desired by the system are
  *  selected.  If no images are specified, the window reverts to its default
- *  icon.
+ *  iconTextureID.
  *
  *  The pixels are 32-bit, little-endian, non-premultiplied RGBA, i.e. eight
  *  bits per channel with the red channel first.  They are arranged canonically
@@ -3378,10 +3378,10 @@ GLFWAPI void glfwSetWindowTitle(GLFWwindow* window, const char* title);
  *  The selected images will be rescaled as needed.  Good sizes include 16x16,
  *  32x32 and 48x48.
  *
- *  @param[in] window The window whose icon to set.
+ *  @param[in] window The window whose iconTextureID to set.
  *  @param[in] count The number of images in the specified array, or zero to
- *  revert to the default window icon.
- *  @param[in] images The images to create the icon from.  This is ignored if
+ *  revert to the default window iconTextureID.
+ *  @param[in] images The images to create the iconTextureID from.  This is ignored if
  *  count is zero.
  *
  *  @errors Possible errors include @ref GLFW_NOT_INITIALIZED, @ref
@@ -3392,13 +3392,13 @@ GLFWAPI void glfwSetWindowTitle(GLFWwindow* window, const char* title);
  *  returns.
  *
  *  @remark @macos Regular windows do not have icons on macOS.  This function
- *  will emit @ref GLFW_FEATURE_UNAVAILABLE.  The dock icon will be the same as
- *  the application bundle's icon.  For more information on bundles, see the
+ *  will emit @ref GLFW_FEATURE_UNAVAILABLE.  The dock iconTextureID will be the same as
+ *  the application bundle's iconTextureID.  For more information on bundles, see the
  *  [Bundle Programming Guide][bundle-guide] in the Mac Developer Library.
  *
  *  [bundle-guide]: https://developer.apple.com/library/mac/documentation/CoreFoundation/Conceptual/CFBundles/
  *
- *  @remark @wayland There is no existing protocol to change an icon, the
+ *  @remark @wayland There is no existing protocol to change an iconTextureID, the
  *  window will thus inherit the one defined in the application's desktop file.
  *  This function will emit @ref GLFW_FEATURE_UNAVAILABLE.
  *
@@ -5525,10 +5525,10 @@ GLFWAPI const float* glfwGetJoystickAxes(int jid, int* count);
  *  @ref glfwJoystickPresent.
  *
  *  @param[in] jid The [joystick](@ref joysticks) to query.
- *  @param[out] count Where to store the number of button states in the returned
+ *  @param[out] count Where to store the number of button state in the returned
  *  array.  This is set to zero if the joystick is not present or an error
  *  occurred.
- *  @return An array of button states, or `NULL` if the joystick is not present
+ *  @return An array of button state, or `NULL` if the joystick is not present
  *  or an [error](@ref error_handling) occurred.
  *
  *  @errors Possible errors include @ref GLFW_NOT_INITIALIZED, @ref
@@ -5582,10 +5582,10 @@ GLFWAPI const unsigned char* glfwGetJoystickButtons(int jid, int* count);
  *  @ref glfwJoystickPresent.
  *
  *  @param[in] jid The [joystick](@ref joysticks) to query.
- *  @param[out] count Where to store the number of hat states in the returned
+ *  @param[out] count Where to store the number of hat state in the returned
  *  array.  This is set to zero if the joystick is not present or an error
  *  occurred.
- *  @return An array of hat states, or `NULL` if the joystick is not present
+ *  @return An array of hat state, or `NULL` if the joystick is not present
  *  or an [error](@ref error_handling) occurred.
  *
  *  @errors Possible errors include @ref GLFW_NOT_INITIALIZED, @ref

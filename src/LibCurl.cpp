@@ -3,23 +3,20 @@
 
 LibCurl::LibCurl() {
     curl_global_init(CURL_GLOBAL_DEFAULT);
-//    curl = curl_easy_init();
 }
 
 LibCurl::~LibCurl() {
     curl_slist_free_all(global_header);
-//    if (curl) {
-//        curl_easy_cleanup(curl);
-//    }
     curl_global_cleanup();
 }
 
 Response LibCurl::Get(const std::string &url) {
     Response response;
-    curl = curl_easy_init();
+    auto curl = curl_easy_init();
+    auto url_str = url.c_str();
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_URL, url_str);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
 //        curl_easy_setopt(curl, CURLOPT_CAINFO, "./curl-ca-bundle.crt");
 //        curl_easy_setopt(curl, CURLOPT_CAPATH, "./curl-ca-bundle.crt");
@@ -27,7 +24,32 @@ Response LibCurl::Get(const std::string &url) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response.data);
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
         CURLcode res = curl_easy_perform(curl);
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response.status);
+        if (res != CURLE_OK) {
+            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+            response.data = curl_easy_strerror(res);
+        }
+        curl_easy_cleanup(curl);
+    }
+    return response;
+}
+
+Response LibCurl::Post(const std::string &url) {
+    Response response;
+    auto curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response.data);
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+        CURLcode res = curl_easy_perform(curl);
+
         if (res != CURLE_OK) {
             std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
             response.data = curl_easy_strerror(res);
@@ -40,7 +62,7 @@ Response LibCurl::Get(const std::string &url) {
 
 Response LibCurl::Post(const std::string &url, const std::string &data) {
     Response response;
-    curl = curl_easy_init();
+    auto curl = curl_easy_init();
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -52,6 +74,7 @@ Response LibCurl::Post(const std::string &url, const std::string &data) {
         curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response.data);
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
         curl_slist *headers;
         headers = curl_slist_append(global_header, "Content-Type: application/json");
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -70,7 +93,7 @@ Response LibCurl::Post(const std::string &url, const std::string &data) {
 
 Response LibCurl::Delete(std::string const& url) {
     Response response;
-    curl = curl_easy_init();
+    auto curl = curl_easy_init();
     if(curl) {
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -81,6 +104,7 @@ Response LibCurl::Delete(std::string const& url) {
         curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response.data);
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
         CURLcode res = curl_easy_perform(curl);
         if (res != CURLE_OK) {
             std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;

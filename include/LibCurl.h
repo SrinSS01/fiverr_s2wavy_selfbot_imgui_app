@@ -23,6 +23,7 @@ public:
 
     Response Get(std::string const& url);
     Response Post(std::string const& url, std::string const& data);
+    Response Post(std::string const& url);
     void setAuthorization(std::string&& token);
 
     static LibCurl& Instance();
@@ -31,7 +32,6 @@ public:
 
 private:
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp);
-    CURL* curl{};
     curl_slist* global_header {};
 };
 

@@ -90,7 +90,7 @@
 //   following things that are used by the undo system:
 //
 //      STB_TEXTEDIT_POSITIONTYPE         small int type encoding a valid cursor position
-//      STB_TEXTEDIT_UNDOSTATECOUNT       the number of undo states to allow
+//      STB_TEXTEDIT_UNDOSTATECOUNT       the number of undo state to allow
 //      STB_TEXTEDIT_UNDOCHARCOUNT        the number of characters to store in the undo buffer
 //
 //   If you don't define these, they are set to permissive types and
@@ -122,7 +122,7 @@
 //
 //     STB_TEXTEDIT_CHARTYPE             the character type
 //     STB_TEXTEDIT_POSITIONTYPE         small type that is a valid cursor position
-//     STB_TEXTEDIT_UNDOSTATECOUNT       the number of undo states to allow
+//     STB_TEXTEDIT_UNDOSTATECOUNT       the number of undo state to allow
 //     STB_TEXTEDIT_UNDOCHARCOUNT        the number of characters to store in the undo buffer
 //
 // Symbols you must define for implementation mode:
@@ -177,7 +177,7 @@
 //    STB_TEXTEDIT_K_TEXTEND2            secondary keyboard input to move cursor to end of text
 //
 // Keyboard input must be encoded as a single integer value; e.g. a character code
-// and some bitflags that represent shift states. to simplify the interface, SHIFT must
+// and some bitflags that represent shift state. to simplify the interface, SHIFT must
 // be a bitflag, so we can test the shifted state of cursor movements to allow selection,
 // i.e. (STB_TEXTEDIT_K_RIGHT|STB_TEXTEDIT_K_SHIFT) should be shifted right-arrow.
 //
